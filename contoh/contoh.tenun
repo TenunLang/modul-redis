@@ -1,0 +1,7 @@
+impor "redis";
+
+biar r: bulat = redis_sambung("127.0.0.1", 6379);
+redis_perintah(r, "SET nama Budi");
+cetak(redis_perintah(r, "GET nama"));
+cetak(redis_perintah(r, "INCR hitung"));
+redis_tutup(r);

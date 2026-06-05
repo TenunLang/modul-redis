@@ -1,0 +1,98 @@
+// Modul Redis untuk Tenun — protokol RESP.
+// Dibangun di atas builtin inti: sambung/kirim/terima, bacaInt, potong, pisah, keTeks/keBulat.
+
+// ---- Koneksi ----
+
+fungsi redis_sambung(inang: teks, port: bulat): bulat {
+    kembali sambung(inang, port);
+}
+
+fungsi redis_tutup(s: bulat): kosong {
+    tutup(s);
+}
+
+// ---- Kirim perintah (RESP array) ----
+
+fungsi redis_kirim(s: bulat, args: []teks): kosong {
+    biar req: teks = "*" + keTeks(panjang(args)) + "\r\n";
+    untuk i dari 0 sampai panjang(args) {
+        req = req + "$" + keTeks(panjangTeks(args[i])) + "\r\n" + args[i] + "\r\n";
+    }
+    kirim(s, req);
+}
+
+// ---- Parsing balasan RESP ----
+
+// Posisi byte '\r' pertama mulai dari offset o.
+fungsi redis_garis(d: teks, o: bulat): bulat {
+    biar i: bulat = o;
+    selama bacaInt(d, i, 1, salah) != 13 {
+        i = i + 1;
+    }
+    kembali i;
+}
+
+// Jumlah byte yang dipakai elemen pada offset o (untuk melompati elemen array).
+fungsi redis_lebar(d: teks, o: bulat): bulat {
+    biar tipe: bulat = bacaInt(d, o, 1, salah);
+    biar akhir: bulat = redis_garis(d, o);
+    biar hdr: bulat = akhir + 2 - o;
+    kalau tipe == 36 {                       // $ bulk
+        biar len: bulat = keBulat(potong(d, o + 1, akhir - (o + 1)));
+        kalau len < 0 { kembali hdr; }
+        kembali hdr + len + 2;
+    }
+    kalau tipe == 42 {                       // * array
+        biar n: bulat = keBulat(potong(d, o + 1, akhir - (o + 1)));
+        biar p: bulat = akhir + 2;
+        biar k: bulat = 0;
+        selama k < n {
+            p = p + redis_lebar(d, p);
+            k = k + 1;
+        }
+        kembali p - o;
+    }
+    kembali hdr;                             // + - :
+}
+
+// Nilai elemen pada offset o sebagai teks. nil -> "". Array -> elemen digabung '\n'.
+fungsi redis_nilai(d: teks, o: bulat): teks {
+    biar tipe: bulat = bacaInt(d, o, 1, salah);
+    biar akhir: bulat = redis_garis(d, o);
+    kalau tipe == 43 { kembali potong(d, o + 1, akhir - (o + 1)); }   // + simple
+    kalau tipe == 45 { kembali potong(d, o + 1, akhir - (o + 1)); }   // - error
+    kalau tipe == 58 { kembali potong(d, o + 1, akhir - (o + 1)); }   // : integer
+    kalau tipe == 36 {                       // $ bulk
+        biar len: bulat = keBulat(potong(d, o + 1, akhir - (o + 1)));
+        kalau len < 0 { kembali ""; }
+        kembali potong(d, akhir + 2, len);
+    }
+    kalau tipe == 42 {                       // * array
+        biar n: bulat = keBulat(potong(d, o + 1, akhir - (o + 1)));
+        biar p: bulat = akhir + 2;
+        biar hasil: teks = "";
+        biar k: bulat = 0;
+        selama k < n {
+            kalau k > 0 { hasil = hasil + "\n"; }
+            hasil = hasil + redis_nilai(d, p);
+            p = p + redis_lebar(d, p);
+            k = k + 1;
+        }
+        kembali hasil;
+    }
+    kembali "";
+}
+
+// ---- Eksekusi ----
+
+// Jalankan perintah dari larik argumen (aman untuk nilai berisi spasi).
+fungsi redis_jalan(s: bulat, args: []teks): teks {
+    redis_kirim(s, args);
+    biar r: teks = terima(s, 1048576);
+    kembali redis_nilai(r, 0);
+}
+
+// Jalankan perintah dari satu teks (dipisah spasi). Pintasan praktis.
+fungsi redis_perintah(s: bulat, cmd: teks): teks {
+    kembali redis_jalan(s, pisah(cmd, " "));
+}

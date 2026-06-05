@@ -1,0 +1,10 @@
+{
+  "nama": "redis",
+  "versi": "0.1.0",
+  "deskripsi": "Klien Redis untuk Tenun (protokol RESP).",
+  "lisensi": "MIT",
+  "penulis": "TenunLang",
+  "berkas": "src/redis.tenun",
+  "kataKunci": ["redis", "resp", "cache", "klien"],
+  "butuh": {}
+}
