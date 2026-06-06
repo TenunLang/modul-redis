@@ -1,0 +1,137 @@
+// Perintah Redis tingkat-tinggi — pembungkus tipis di atas redis_jalan.
+// Argumen dikirim sebagai array RESP, jadi aman untuk nilai berisi spasi.
+
+// ---- koneksi / server ----
+
+fungsi redis_ping(s: bulat): teks {
+    kembali redis_jalan(s, ["PING"]);
+}
+
+fungsi redis_auth(s: bulat, sandi: teks): teks {
+    kembali redis_jalan(s, ["AUTH", sandi]);
+}
+
+// Pilih nomor database (0-15).
+fungsi redis_pilih(s: bulat, db: bulat): teks {
+    kembali redis_jalan(s, ["SELECT", keTeks(db)]);
+}
+
+fungsi redis_bersihkan(s: bulat): teks {
+    kembali redis_jalan(s, ["FLUSHDB"]);
+}
+
+// ---- string / kunci ----
+
+fungsi redis_set(s: bulat, kunci: teks, nilai: teks): teks {
+    kembali redis_jalan(s, ["SET", kunci, nilai]);
+}
+
+fungsi redis_get(s: bulat, kunci: teks): teks {
+    kembali redis_jalan(s, ["GET", kunci]);
+}
+
+// SET dengan kedaluwarsa (detik) — inti cache.
+fungsi redis_setex(s: bulat, kunci: teks, detik: bulat, nilai: teks): teks {
+    kembali redis_jalan(s, ["SETEX", kunci, keTeks(detik), nilai]);
+}
+
+fungsi redis_del(s: bulat, kunci: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["DEL", kunci]));
+}
+
+fungsi redis_ada(s: bulat, kunci: teks): bool {
+    kembali keBulat(redis_jalan(s, ["EXISTS", kunci])) > 0;
+}
+
+fungsi redis_kedaluwarsa(s: bulat, kunci: teks, detik: bulat): bulat {
+    kembali keBulat(redis_jalan(s, ["EXPIRE", kunci, keTeks(detik)]));
+}
+
+// Sisa umur kunci (detik). -1 = tanpa TTL, -2 = tidak ada.
+fungsi redis_ttl(s: bulat, kunci: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["TTL", kunci]));
+}
+
+fungsi redis_incr(s: bulat, kunci: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["INCR", kunci]));
+}
+
+fungsi redis_decr(s: bulat, kunci: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["DECR", kunci]));
+}
+
+fungsi redis_naik(s: bulat, kunci: teks, jumlah: bulat): bulat {
+    kembali keBulat(redis_jalan(s, ["INCRBY", kunci, keTeks(jumlah)]));
+}
+
+// ---- hash ----
+
+fungsi redis_hset(s: bulat, kunci: teks, field: teks, nilai: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["HSET", kunci, field, nilai]));
+}
+
+fungsi redis_hget(s: bulat, kunci: teks, field: teks): teks {
+    kembali redis_jalan(s, ["HGET", kunci, field]);
+}
+
+fungsi redis_hdel(s: bulat, kunci: teks, field: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["HDEL", kunci, field]));
+}
+
+// Semua field+nilai (digabung '\n', berpasangan field, nilai, field, ...).
+fungsi redis_hsemua(s: bulat, kunci: teks): teks {
+    kembali redis_jalan(s, ["HGETALL", kunci]);
+}
+
+// ---- list ----
+
+fungsi redis_lpush(s: bulat, kunci: teks, nilai: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["LPUSH", kunci, nilai]));
+}
+
+fungsi redis_rpush(s: bulat, kunci: teks, nilai: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["RPUSH", kunci, nilai]));
+}
+
+fungsi redis_lpop(s: bulat, kunci: teks): teks {
+    kembali redis_jalan(s, ["LPOP", kunci]);
+}
+
+fungsi redis_rpop(s: bulat, kunci: teks): teks {
+    kembali redis_jalan(s, ["RPOP", kunci]);
+}
+
+fungsi redis_llen(s: bulat, kunci: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["LLEN", kunci]));
+}
+
+// Rentang elemen (digabung '\n'). Pakai 0 dan -1 untuk semua.
+fungsi redis_lrange(s: bulat, kunci: teks, awal: bulat, akhir: bulat): teks {
+    kembali redis_jalan(s, ["LRANGE", kunci, keTeks(awal), keTeks(akhir)]);
+}
+
+// ---- set ----
+
+fungsi redis_sadd(s: bulat, kunci: teks, anggota: teks): bulat {
+    kembali keBulat(redis_jalan(s, ["SADD", kunci, anggota]));
+}
+
+fungsi redis_smembers(s: bulat, kunci: teks): teks {
+    kembali redis_jalan(s, ["SMEMBERS", kunci]);
+}
+
+fungsi redis_sada(s: bulat, kunci: teks, anggota: teks): bool {
+    kembali keBulat(redis_jalan(s, ["SISMEMBER", kunci, anggota])) > 0;
+}
+
+// ---- rate limiting (untuk web) ----
+
+// Hitung permintaan per jendela waktu. Kembalikan benar bila MASIH boleh
+// (<= maks dalam `window` detik). Cocok untuk membatasi API/login.
+fungsi redis_batas(s: bulat, kunci: teks, maks: bulat, window: bulat): bool {
+    biar n: bulat = keBulat(redis_jalan(s, ["INCR", kunci]));
+    kalau n == 1 {
+        redis_jalan(s, ["EXPIRE", kunci, keTeks(window)]);
+    }
+    kembali n <= maks;
+}

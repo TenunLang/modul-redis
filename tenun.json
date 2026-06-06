@@ -1,7 +1,7 @@
 {
   "nama": "redis",
-  "versi": "0.1.0",
-  "deskripsi": "Klien Redis untuk Tenun (protokol RESP).",
+  "versi": "0.2.0",
+  "deskripsi": "Klien Redis untuk Tenun (RESP): SET/GET/TTL, hash/list/set, dan rate-limiting.",
   "lisensi": "MIT",
   "penulis": "TenunLang",
   "berkas": "src/redis.tenun",

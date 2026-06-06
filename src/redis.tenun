@@ -96,3 +96,6 @@ fungsi redis_jalan(s: bulat, args: []teks): teks {
 fungsi redis_perintah(s: bulat, cmd: teks): teks {
     kembali redis_jalan(s, pisah(cmd, " "));
 }
+
+// Perintah tingkat-tinggi (SET/GET/HASH/LIST/SET/rate-limit).
+impor "./perintah.tenun";
