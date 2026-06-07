@@ -22,3 +22,5 @@ jobs:
           printf 'impor "redis";\n' > cek.tenun
           "$HOME/.tenun/bin/tenun" run cek.tenun
           echo "modul redis valid (parse + pengecekan tipe lolos)"
+      - name: Uji unit
+        run: "$HOME/.tenun/bin/tenun" check .

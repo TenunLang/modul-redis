@@ -1,0 +1,2 @@
+impor "../src/redis.tenun";
+tegas(benar, "modul redis termuat tanpa galat");
